@@ -1,85 +1,70 @@
 // create web server
-var express = require('express');
-var app = express();
+// create server
+var http = require('http');
+var fs = require('fs');
+var url = require('url');
+var querystring = require('querystring');
+var path = require('path');
 
-// handle post requests
-var bodyParser = require('body-parser');
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
+var comments = {
+    'haha': 'haha',
+    'hehe': 'hehe',
+    'heihei': 'heihei'
+};
 
-// handle comments
-var comments = [
-  'This is a comment',
-  'This is another comment'
-];
-
-// handle get requests
-app.get('/comments', function(req, res) {
-  res.send(comments);
+var server = http.createServer(function (req, res) {
+    // parse request
+    var parseUrl = url.parse(req.url);
+    var pathname = parseUrl.pathname;
+    var query = querystring.parse(parseUrl.query);
+    // parse query string
+    console.log('query', query);
+    // parse post data
+    var postData = '';
+    req.on('data', function (chunk) {
+        postData += chunk;
+    });
+    req.on('end', function () {
+        var postQuery = querystring.parse(postData);
+        console.log('postQuery', postQuery);
+        // route
+        if (pathname === '/getComments') {
+            var data = JSON.stringify(comments);
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(data, 'utf8')
+            });
+            res.end(data);
+        } else if (pathname === '/addComment') {
+            var comment = postQuery.comment;
+            comments[comment] = comment;
+            var data = JSON.stringify(comments);
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(data, 'utf8')
+            });
+            res.end(data);
+        } else {
+            var filePath = path.join(__dirname, pathname);
+            fs.exists(filePath, function (exists) {
+                if (exists) {
+                    fs.readFile(filePath, function (err, data) {
+                        if (err) {
+                            res.writeHead(500);
+                            res.end('Server Internal Error');
+                        } else {
+                            res.writeHead(200);
+                            res.end(data);
+                        }
+                    });
+                } else {
+                    res.writeHead(404);
+                    res.end('404 Not Found');
+                }
+            });
+        }
+    });
 });
 
-// handle post requests
-app.post('/comments', function(req, res) {
-  comments.push(req.body.comment);
-  res.send('Successfully added comment');
-});
-
-// start web server
-app.listen(3000, function() {
-  console.log('Server is running on http://localhost:3000');
-});
-
-// run the server
-// node comments.js
-// open browser and go to http://localhost:3000/comments
-// to view comments
-// use curl to post a comment
-// curl -X POST -d "comment=This is a new comment" http://localhost:3000/comments
-
-// Path: index.js
-// create web server
-var express = require('express');
-var app = express();
-
-// handle get requests
-app.get('/', function(req, res) {
-  res.send('Hello World');
-});
-
-// start web server
-app.listen(3000, function() {
-  console.log('Server is running on http://localhost:3000');
-});
-
-// run the server
-// node index.js
-// open browser and go to http://localhost:3000
-// to view Hello World
-// or use curl
-// curl http://localhost:3000
-
-// Path: index.html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Comments</title>
-</head>
-<body>
-  <h1>Comments</h1>
-  <form id="commentForm">
-    <input type="text" name="comment" />
-    <input type="submit" value="Add Comment" />
-  </form>
-  <ul id="comments"></ul>
-  <script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
-  <script>
-    $(function() {
-      $.get('http://localhost:3000/comments', function(comments) {
-        comments.forEach(function(comment) {
-          $('<li>').text(comment).appendTo('#comments');
-        });
-      });
-
-      $('#commentForm').submit(function(event) {
-        event.preventDefault();
-        var comment = $('input 
+server.listen(8080, function () {
+    console.log('Server is running at http://
